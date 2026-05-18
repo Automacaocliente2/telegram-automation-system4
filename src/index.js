@@ -22,23 +22,23 @@ const TZ = "America/Sao_Paulo";
 
 // ================= CONFIG VIP =================
 
-const PIX_KEY = process.env.PIX_KEY || "COLOQUE_A_CHAVE_PIX_AQUI";
+const PIX_KEY = process.env.PIX_KEY || "17218127762";
 const PIX_NAME = process.env.PIX_NAME || "Bia Negah";
-const VIP_LINK = process.env.VIP_LINK || "COLOQUE_O_LINK_DO_CANAL_AQUI";
-const SUPPORT_USER = process.env.SUPPORT_USER || "@seu_suporte";
+const VIP_LINK = process.env.VIP_LINK || "https://t.me/+CPfphJ1olCAxY2M5";
+const SUPPORT_USER = process.env.SUPPORT_USER || "@gerente_12";
 
 const PLANS = {
   semanal: {
     label: "7 dias",
-    price: "R$ 19,90",
+    price: "R$ 10,90",
   },
   quinzenal: {
     label: "15 dias",
-    price: "R$ 29,90",
+    price: "R$ 16,90",
   },
   mensal: {
     label: "30 dias",
-    price: "R$ 49,90",
+    price: "R$ 29,90",
   },
 };
 

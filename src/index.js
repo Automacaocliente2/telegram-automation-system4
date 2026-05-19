@@ -38,7 +38,7 @@ const PLANS = {
   },
   mensal: {
     label: "30 dias",
-    price: "R$ 29,90",
+    price: "R$ 19,90",
   },
 };
 
@@ -342,48 +342,135 @@ bot.action(/^PLAN_(.+)$/, async (ctx) => {
   await sendPixInstructions(ctx, planKey);
 });
 
-bot.action(/^APPROVE_(.+)$/, async (ctx) => {
-  await ctx.answerCbQuery();
-
-  if (String(ctx.from.id) !== String(ADMIN_ID)) {
-    return ctx.reply("Ação permitida apenas para o admin.");
-  }
-
-  const paymentId = ctx.match[1];
+async function approvePayment(paymentId, adminCtx = null) {
   const payment = updatePaymentStatus(paymentId, "aprovado");
 
   if (!payment) {
-    return ctx.reply("Pagamento não encontrado.");
+    if (adminCtx) await adminCtx.reply("Pagamento não encontrado.");
+    return;
   }
 
   await bot.telegram.sendMessage(
     payment.userId,
-    `✅ Pagamento aprovado!\n\nSeu acesso ao VIP da Bia Negah foi liberado:\n${VIP_LINK}`
+    `✅ Pagamento aprovado!
+
+Seu acesso ao VIP da Bia Negah foi liberado:
+${VIP_LINK}`
   );
 
-  await ctx.reply(`✅ Acesso liberado para ${payment.name || payment.userId}`);
-});
+  if (adminCtx) {
+    await adminCtx.reply(`✅ Acesso liberado para ${payment.name || payment.userId}`);
+  }
+}
 
-bot.action(/^REJECT_(.+)$/, async (ctx) => {
-  await ctx.answerCbQuery();
+async function rejectPayment(paymentId, adminCtx = null) {
+  const payment = updatePaymentStatus(paymentId, "recusado");
 
+  if (!payment) {
+    if (adminCtx) await adminCtx.reply("Pagamento não encontrado.");
+    return;
+  }
+
+  await bot.telegram.sendMessage(
+    payment.userId,
+    "❌ Não conseguimos confirmar o pagamento.
+
+Confira o PIX e envie o comprovante novamente ou fale com o suporte."
+  );
+
+  if (adminCtx) {
+    await adminCtx.reply(`❌ Pagamento recusado para ${payment.name || payment.userId}`);
+  }
+}
+
+bot.command("aprovar", async (ctx) => {
   if (String(ctx.from.id) !== String(ADMIN_ID)) {
     return ctx.reply("Ação permitida apenas para o admin.");
   }
 
-  const paymentId = ctx.match[1];
-  const payment = updatePaymentStatus(paymentId, "recusado");
+  const paymentId = ctx.message.text.split(" ")[1];
 
-  if (!payment) {
-    return ctx.reply("Pagamento não encontrado.");
+  if (!paymentId) {
+    return ctx.reply("Use assim: /aprovar ID_DO_PEDIDO");
   }
 
-  await bot.telegram.sendMessage(
-    payment.userId,
-    "❌ Não conseguimos confirmar o pagamento.\n\nConfira o PIX e envie o comprovante novamente ou fale com o suporte."
-  );
+  try {
+    await approvePayment(paymentId, ctx);
+  } catch (error) {
+    console.log("Erro ao aprovar por comando:", error.message);
+    await ctx.reply(`Erro ao aprovar: ${error.message}`);
+  }
+});
 
-  await ctx.reply(`❌ Pagamento recusado para ${payment.name || payment.userId}`);
+bot.command("recusar", async (ctx) => {
+  if (String(ctx.from.id) !== String(ADMIN_ID)) {
+    return ctx.reply("Ação permitida apenas para o admin.");
+  }
+
+  const paymentId = ctx.message.text.split(" ")[1];
+
+  if (!paymentId) {
+    return ctx.reply("Use assim: /recusar ID_DO_PEDIDO");
+  }
+
+  try {
+    await rejectPayment(paymentId, ctx);
+  } catch (error) {
+    console.log("Erro ao recusar por comando:", error.message);
+    await ctx.reply(`Erro ao recusar: ${error.message}`);
+  }
+});
+
+bot.action(/^APPROVE_(.+)$/, async (ctx) => {
+  try {
+    if (String(ctx.from.id) !== String(ADMIN_ID)) {
+      await ctx.answerCbQuery("Ação permitida apenas para o admin.");
+      return ctx.reply("Ação permitida apenas para o admin.");
+    }
+
+    const paymentId = ctx.match[1];
+    await approvePayment(paymentId, ctx);
+
+    try {
+      await ctx.answerCbQuery("Aprovado com sucesso");
+    } catch (error) {
+      console.log("Callback antigo ao aprovar:", error.message);
+    }
+  } catch (error) {
+    console.log("Erro ao aprovar:", error.message);
+    try {
+      await ctx.answerCbQuery("Erro ao aprovar");
+    } catch (_error) {}
+    await ctx.reply(`Erro ao aprovar: ${error.message}
+
+Se o botão expirou, use: /aprovar ${ctx.match?.[1] || "ID_DO_PEDIDO"}`);
+  }
+});
+
+bot.action(/^REJECT_(.+)$/, async (ctx) => {
+  try {
+    if (String(ctx.from.id) !== String(ADMIN_ID)) {
+      await ctx.answerCbQuery("Ação permitida apenas para o admin.");
+      return ctx.reply("Ação permitida apenas para o admin.");
+    }
+
+    const paymentId = ctx.match[1];
+    await rejectPayment(paymentId, ctx);
+
+    try {
+      await ctx.answerCbQuery("Recusado com sucesso");
+    } catch (error) {
+      console.log("Callback antigo ao recusar:", error.message);
+    }
+  } catch (error) {
+    console.log("Erro ao recusar:", error.message);
+    try {
+      await ctx.answerCbQuery("Erro ao recusar");
+    } catch (_error) {}
+    await ctx.reply(`Erro ao recusar: ${error.message}
+
+Se o botão expirou, use: /recusar ${ctx.match?.[1] || "ID_DO_PEDIDO"}`);
+  }
 });
 
 bot.on(["photo", "document"], async (ctx) => {
